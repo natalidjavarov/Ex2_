@@ -8,7 +8,7 @@ public class Edge implements edge_data {
     private int tag = 0;
     private String info;
 
-    public Edge(double w,node_data s, node_data d) {
+    public Edge(node_data s, node_data d,double w) {
         this.weight = w;
         this.src = s;
         this.dst = d;

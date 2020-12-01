@@ -1,13 +1,16 @@
 package api;
 
+import scala.Int;
+
 import java.util.*;
 
 public class DWGraph_DS implements directed_weighted_graph {
 
     private Map<Integer, node_data> nodes = new HashMap<>();
-    private Map<Integer, Map<Integer, edge_data>> edges = new HashMap<>();
+    private Map<Integer, Map<Integer, edge_data>> edges = new HashMap<>();//edges out
+    private Map<Integer, HashSet<Integer>> edgesi = new HashMap<>();// edges in
     private int modeCount = 0;
-    private int edgesSize=0;
+    private int edgesSize = 0;
 
     /**
      * returns the node_data by the node_id,
@@ -17,7 +20,7 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public node_data getNode(int key) {
-        if (nodes.get(key) != null) {
+        if (nodes.containsKey(key)) {
             return nodes.get(key);
         }
         return null;
@@ -33,8 +36,10 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public edge_data getEdge(int src, int dest) {
-        if (this.edges.get(src).get(dest) != null) {
-            return this.edges.get(src).get(dest);
+        if(nodes.containsKey(src) && nodes.containsKey(dest)) {
+            if (this.edges.get(src).containsKey(dest)) {
+                return this.edges.get(src).get(dest);
+            }
         }
         return null;
     }
@@ -47,12 +52,11 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public void addNode(node_data n) {
-      //  this.nodes.put(this.modeCount, n);
-        if (this.nodes.containsKey(n)) return;
-        node_data newNode = new node_data(n);
-        this.nodes.put(modeCount,newNode);
-        this.vertices.add(newNode);
-        modeCount++;
+        if(!this.nodes.containsKey(n.getKey())) {
+            this.nodes.put(n.getKey(), n);
+            this.edges.put(n.getKey(),new HashMap<Integer, edge_data>());
+            this.edgesi.put(n.getKey(),new HashSet<Integer>());
+        }
     }
 
     /**
@@ -65,37 +69,41 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public void connect(int src, int dest, double w) {
-        // loop OR w is negative
-        if (src == dest || w < 0) {
+        if(w < 0){
+            System.err.println("weight < 0");
             return;
         }
         // invalid nodes
         if (!this.nodes.containsKey(src) || !this.nodes.containsKey(dest)) {
+            System.err.println("one of the does not exist in the graph");
             return;
         }
         //exist edge
-        else if (this.getEdge(src, dest) != null) {
-            edge_data edgeOut = this.edges.get(src).get(dest);
-            node_data s = this.nodes.get(src);
-            node_data d = this.nodes.get(dest);
-            edge_data edgeToPut = new Edge(w, s, d);
-            edgeToPut.setTag(edgeOut.getTag());
-            edgeToPut.setInfo(edgeOut.getInfo());
-            this.edges.get(src).replace(dest, edgeToPut);
-
-
-        } else { // does not exist
-            node_data s = this.nodes.get(src);
-            node_data d = this.nodes.get(dest);
-            edge_data e = new Edge(w,s,d);
-            Map<Integer,edge_data> edgeMap = new HashMap<>();
-            edgeMap.put(dest,e);
-            this.edges.put(src,edgeMap);
-            edgesSize++;
+        else {
+            if (getEdge(src, dest) == null) {
+                edgesSize++;
+            } else {
+                edgesi.get(dest).remove(src);
+            }
+            edges.get(src).put(dest, new Edge(nodes.get(src), nodes.get(dest), w));
+            edgesi.get(dest).add(src);
             modeCount++;
+        }
+//
+//
+//
+//         else { // does not exist
+//            node_data s = this.nodes.get(src);
+//            node_data d = this.nodes.get(dest);
+//            edge_data e = new Edge(w, s, d);
+//            Map<Integer, edge_data> edgeMap = new HashMap<>();
+//            edgeMap.put(dest, e);
+//            this.edges.put(src, edgeMap);
+//            edgesSize++;
+//            modeCount++;
 
         }
-    }
+
 
     /**
      * This method returns a pointer (shallow copy) for the
@@ -106,7 +114,7 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public Collection<node_data> getV() {
-      return this.nodes.values();
+        return this.nodes.values();
 
     }
 
@@ -121,7 +129,11 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public Collection<edge_data> getE(int node_id) {
-        return this.edges.get(node_id).values();
+        Collection<edge_data> e = new HashSet<edge_data>();
+        for (edge_data Edge: edges.get(node_id).values()){
+            e.add(Edge);
+        }
+        return e;
     }
 
     /**
@@ -137,18 +149,15 @@ public class DWGraph_DS implements directed_weighted_graph {
         if (!this.nodes.containsKey(key)) {
             return null;
         }
-        this.modeCount++;
         node_data v = this.getNode(key);
-        this.nodes.remove(v);
-        this.nodes.remove(key);
-        if (this.edges.containsKey(key)) {
-            Map<Integer, edge_data> neighbors = this.edges.get(key);
-            for (Integer u : neighbors.keySet()) {
-                this.edges.get(u).remove(key);
-                this.edgesSize--;
-            }
+        for (edge_data ni : this.getE(key)) {
+            this.edges.get(key).remove(ni.getDest());
         }
-        return v;
+        for (Integer i : this.edgesi.get(key)){
+            this.edges.get(i).remove(key);
+        }
+        this.edgesi.remove(key);
+        return this.nodes.remove(key);
     }
 
     /**
@@ -161,7 +170,12 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public edge_data removeEdge(int src, int dest) {
-        return null;
+        if (!(getEdge(src, dest) == null)) {
+            this.edgesi.get(dest).remove(src);
+            this.edgesSize--;
+            this.modeCount++;
+        }
+        return this.edges.get(src).remove(dest);
     }
 
     /**
@@ -183,7 +197,7 @@ public class DWGraph_DS implements directed_weighted_graph {
      */
     @Override
     public int edgeSize() {
-        return 0;
+        return edgesSize;
     }
 
     /**
@@ -195,6 +209,7 @@ public class DWGraph_DS implements directed_weighted_graph {
     public int getMC() {
         return 0;
     }
+
     public class Vertex implements node_data {
 
         private geo_location geo;
@@ -202,6 +217,8 @@ public class DWGraph_DS implements directed_weighted_graph {
         private double weight;
         private int tag = 0;
         private int key;
+        String info;
+
         public Vertex(GeoLocation g, int k) {
             this.geo = g;
             this.key = k;
@@ -246,7 +263,7 @@ public class DWGraph_DS implements directed_weighted_graph {
          */
         @Override
         public double getWeight() {
-            return 0;
+            return weight;
         }
 
         /**
@@ -256,7 +273,7 @@ public class DWGraph_DS implements directed_weighted_graph {
          */
         @Override
         public void setWeight(double w) {
-
+            weight = w;
         }
 
         /**
@@ -266,7 +283,7 @@ public class DWGraph_DS implements directed_weighted_graph {
          */
         @Override
         public String getInfo() {
-            return null;
+            return info;
         }
 
         /**
@@ -276,7 +293,7 @@ public class DWGraph_DS implements directed_weighted_graph {
          */
         @Override
         public void setInfo(String s) {
-
+        this.info = s;
         }
 
         /**
@@ -287,7 +304,7 @@ public class DWGraph_DS implements directed_weighted_graph {
          */
         @Override
         public int getTag() {
-            return 0;
+            return this.tag;
         }
 
         /**
@@ -302,7 +319,5 @@ public class DWGraph_DS implements directed_weighted_graph {
         }
 
 
-
-
-}
+    }
 }

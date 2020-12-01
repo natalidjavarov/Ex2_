@@ -4,15 +4,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class Vertex implements node_data {
-
     private geo_location geo;
-    private Set<node_data> vertices = new HashSet<>();
     private double weight;
     private int tag = 0;
     private int key;
-    public Vertex(GeoLocation g, int k) {
-        this.geo = g;
-        this.key = k;
+
+
+
+    public Vertex(int key) {
+        this.key = key;
+        this.geo = new GeoLocation(0,0,0);
     }
 
 
